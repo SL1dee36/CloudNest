@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Редактирование {{ filename }}</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            background-color: #1e1e1e;
+            color: #fff;
+        }
+        textarea {
+            width: 100%;
+            height: 500px;
+            background-color: #242424;
+            color: #fff;
+            border: 1px solid #7c7c7c;
+            padding: 10px;
+            resize: vertical;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 8px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #367c39;
+        }
+        .container{
+            padding: 20px;
+            border-radius: 20px;
+            border: 1px solid #7c7c7c;
+            margin: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Редактирование {{ filename }}</h1>
+        <form action="/save/{{ filename }}" method="post">
+            <textarea name="content">{{ content }}</textarea>
+            <button type="submit">Сохранить</button>
+        </form>
+    </div>
+</body>
+</html>

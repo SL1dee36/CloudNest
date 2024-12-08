@@ -1,0 +1,115 @@
+body {
+    margin: 0;
+    font-family: sans-serif;
+    background-color: #1e1e1e;
+    color: #fff
+}
+
+.container {
+    width: 100%;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.top-block {
+    background-color: #242424;
+    padding: 20px;
+    text-align: center;
+    border-radius: 20px;
+    border: 1px solid #7c7c7c;
+    margin: 10px;
+}
+
+.bottom-block {
+    background-color: #242424;
+    padding: 20px;
+    flex-grow: 1;
+    border-radius: 20px;
+    border: 1px solid #7c7c7c;
+    margin: 0px 10px 10px 10px;
+}
+
+h1, h2 {
+    text-align: center;
+}
+
+ul {
+    list-style: none;
+    padding: 0;
+}
+
+li {
+    background-color: #333;
+    margin-bottom: 5px;
+    padding: 10px;
+    border-radius: 5px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: background-color 0.5s ease; /* Добавляем плавный переход для фона */
+}
+
+/* Анимация загрузки */
+li.uploading {
+    animation: loading-animation 2s infinite linear;
+}
+
+/* Анимация извлечения */
+li.extracting {
+    animation: loading-animation 2s infinite linear;
+}
+
+@keyframes loading-animation {
+    0% {
+        background-color: #333;
+    }
+    50% {
+        background-color: #555;
+    }
+    100% {
+        background-color: #333;
+    }
+}
+
+button {
+    background-color: #4CAF50;
+    color: white;
+    padding: 8px 15px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-left: 10px;
+}
+
+button:hover {
+    background-color: #367c39;
+}
+
+.delete-btn {
+    background-color: #d9534f;
+}
+
+.delete-btn:hover {
+    background-color: #c9302c;
+}
+
+.item-name {
+    flex-grow: 1;
+    margin-right: 10px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.item-name.folder::before {
+    content: '📂 ';
+}
+.item-name.archive::before {
+    content: '🗄️ '; /* Иконка архива */
+}
+
+.item-type, .item-size {
+    margin-left: 10px;
+    font-size: 0.9em;
+    color: #ccc;
+}

@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="static/style.css">
+    <title>Удаленное хранилище</title>
+</head>
+<body>
+    <div class="container">
+        <div class="top-block">
+            <h1>Удаленное хранилище</h1>
+            <input type="file" id="fileInput" multiple style="display: none;">
+            <button id="uploadButton">Загрузить файл</button>
+        </div>
+        <div class="bottom-block">
+            <h2>Файлы:</h2>
+            <ul id="fileList">
+                <!-- Здесь будут отображаться файлы -->
+            </ul>
+        </div>
+    </div>
+    <script>
+        const fileList = document.getElementById('fileList');
+        const uploadButton = document.getElementById('uploadButton');
+        const fileInput = document.getElementById('fileInput');
+
+        // Функция для обновления списка файлов
+        function updateFileList() {
+            fetch('/list')
+                .then(response => response.json())
+                .then(data => {
+                    fileList.innerHTML = '';
+                    data.items.forEach(item => {
+                        const li = document.createElement('li');
+                        li.dataset.filename = item.name;
+
+                        // Определение типа файла на клиенте
+                        const isArchive = isArchiveFile(item.name);
+
+                        if (item.is_dir) {
+                            li.innerHTML = `
+                                <span class="item-name folder">${item.name}</span>
+                                <span class="item-size">${formatBytes(item.size)}</span>
+                                <button class="download-btn" data-filename="${item.name}">Download</button>
+                                <button class="delete-btn" data-filename="${item.name}">Delete</button>
+                                <button class="open-btn" data-filename="${item.name}">Open</button>
+                            `;
+                        } else {
+                            const isEditable = isEditableFile(item.name);
+                            li.innerHTML = `
+                                <span class="item-name ${isArchive ? 'archive' : ''}">${item.name}</span>
+                                <span class="item-type">${item.type}</span>
+                                <span class="item-size">${formatBytes(item.size)}</span>
+                                <button class="download-btn" data-filename="${item.name}">Download</button>
+                                <button class="delete-btn" data-filename="${item.name}">Delete</button>
+                                <button class="edit-btn" data-filename="${item.name}" ${isEditable ? '' : 'style="display: none;"'}>Edit</button>
+                                <button class="extract-btn" data-filename="${item.name}" ${isArchive ? '' : 'style="display: none;"'}>Extract</button>
+                            `;
+                        }
+                        fileList.appendChild(li);
+                    });
+                    addEventListenersToButtons();
+                })
+                .catch(error => console.error('Error:', error));
+        }
+
+        // Функция для определения, является ли файл архивом (на основе расширения)
+        function isArchiveFile(filename) {
+            const archiveExtensions = ['.zip', '.rar', '.7z', '.tar', '.gz', '.bz2'];
+            const ext = filename.slice(filename.lastIndexOf('.')).toLowerCase();
+            return archiveExtensions.includes(ext);
+        }
+
+        // Функция для определения, является ли файл редактируемым (на основе расширения)
+        function isEditableFile(filename) {
+            const editableExtensions = ['.txt', '.html', '.css', '.js', '.py', '.json', '.xml', '.csv', '.md', '.log']; // и другие текстовые форматы
+            const ext = filename.slice(filename.lastIndexOf('.')).toLowerCase();
+            return editableExtensions.includes(ext);
+        }
+
+        // Функция для форматирования размера файла
+        function formatBytes(bytes, decimals = 2) {
+            if (bytes === 0) return '0 Bytes';
+
+            const k = 1024;
+            const dm = decimals < 0 ? 0 : decimals;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+        }
+
+        // Обработчик нажатия на кнопку загрузки
+        uploadButton.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        // Обработчик выбора файла
+        fileInput.addEventListener('change', () => {
+            const files = fileInput.files;
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                const formData = new FormData();
+                formData.append('file', file);
+
+                // Ищем элемент в списке по имени файла, если он уже есть
+                let li = document.querySelector(`#fileList li[data-filename="${file.name}"]`);
+                if (!li) {
+                    // Если элемента нет, создаем новый
+                    li = document.createElement('li');
+                    li.dataset.filename = file.name;
+                    li.innerHTML = `
+                        <span class="item-name">${file.name}</span>
+                        <span class="item-type"></span>
+                        <span class="item-size">Uploading...</span>
+                        <button class="download-btn" data-filename="${file.name}" style="display: none;">Download</button>
+                        <button class="delete-btn" data-filename="${file.name}" style="display: none;">Delete</button>
+                        <button class="open-btn" data-filename="${file.name}" style="display: none;">Open</button>
+                        <button class="edit-btn" data-filename="${file.name}" style="display: none;">Edit</button>
+                        <button class="extract-btn" data-filename="${file.name}" style="display: none;">Extract</button>
+                    `;
+                    fileList.appendChild(li);
+                }
+
+                // Добавляем класс uploading для анимации
+                li.classList.add('uploading');
+
+                // Опция, указывающая, что мы хотим использовать ReadableStream
+                const options = {
+                    method: 'POST',
+                    body: formData,
+                    allowHTTP1ForStreamingUpload: true,
+                };
+
+                fetch('/upload', options)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    const contentLength = +response.headers.get('Content-Length');
+                    let receivedLength = 0;
+                    let chunks = [];
+
+                    const reader = response.body.getReader();
+
+                    return new Promise((resolve, reject) => {
+                        function pump() {
+                            reader.read().then(({ done, value }) => {
+                                if (done) {
+                                    let body = new Uint8Array(receivedLength);
+                                    let position = 0;
+                                    for (let chunk of chunks) {
+                                        body.set(chunk, position);
+                                        position += chunk.length;
+                                    }
+
+                                    resolve(new Response(body));
+                                    return;
+                                }
+
+                                chunks.push(value);
+                                receivedLength += value.length;
+
+                                // Расчет и обновление прогресса в элементе списка
+                                const percentComplete = contentLength ? (receivedLength / contentLength) * 100 : 0;
+                                if (li) {
+                                    const itemSize = li.querySelector('.item-size');
+                                    if (itemSize) {
+                                        itemSize.textContent = `Uploading... ${percentComplete.toFixed(0)}%`;
+                                    }
+                                }
+                                pump();
+                            }).catch(reject);
+                        }
+
+                        pump();
+                    });
+                })
+                .then(response => response.json())
+                .then(data => {
+                    console.log(data);
+                    if (li) {
+                        li.classList.remove('uploading');
+                        const itemSize = li.querySelector('.item-size');
+                        if (itemSize) {
+                          fetch('/list')
+                          .then(response => response.json())
+                          .then(data => {
+                            data.items.forEach(item => {
+                              if(item.name == li.dataset.filename){
+                                if (item.is_dir) {
+                                  li.querySelector('.item-name').classList.add('folder');
+                                  li.querySelector('.item-type').textContent = '';
+                                }
+                                else{
+                                  li.querySelector('.item-type').textContent = item.type;
+                                }
+                                itemSize.textContent = formatBytes(item.size);
+                              }
+                            })
+                          });
+                        }
+                        // Обновляем кнопки после завершения загрузки
+                        const downloadBtn = li.querySelector('.download-btn');
+                        const deleteBtn = li.querySelector('.delete-btn');
+                        const openBtn = li.querySelector('.open-btn');
+                        const editBtn = li.querySelector('.edit-btn');
+                        const extractBtn = li.querySelector('.extract-btn');
+                        if (downloadBtn) downloadBtn.style.display = 'inline-block';
+                        if (deleteBtn) deleteBtn.style.display = 'inline-block';
+                        if (item.is_dir){
+                            if (openBtn) openBtn.style.display = 'inline-block';
+                        }
+                        else{
+                            if (editBtn) editBtn.style.display = isEditableFile(item.name) ? 'inline-block' : 'none';
+                            if (extractBtn) extractBtn.style.display = isArchiveFile(item.name) ? 'inline-block' : 'none';
+                        }
+                    }
+                    updateFileList();
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    if (li) {
+                        li.classList.remove('uploading');
+                        const itemSize = li.querySelector('.item-size');
+                        if (itemSize) {
+                            itemSize.textContent = 'Error';
+                        }
+                    }
+                });
+            }
+            fileInput.value = '';
+        });
+
+        // Функция добавления обработчиков событий для кнопок
+        function addEventListenersToButtons() {
+            document.querySelectorAll('.download-btn').forEach(button => {
+                button.removeEventListener('click', onDownloadClick);
+                button.addEventListener('click', onDownloadClick);
+            });
+
+            document.querySelectorAll('.delete-btn').forEach(button => {
+                button.removeEventListener('click', onDeleteClick);
+                button.addEventListener('click', onDeleteClick);
+            });
+
+            document.querySelectorAll('.edit-btn').forEach(button => {
+                button.removeEventListener('click', onEditClick);
+                button.addEventListener('click', onEditClick);
+            });
+
+            document.querySelectorAll('.extract-btn').forEach(button => {
+                button.removeEventListener('click', onExtractClick);
+                button.addEventListener('click', onExtractClick);
+            });
+
+            document.querySelectorAll('.open-btn').forEach(button => {
+                button.removeEventListener('click', onOpenClick);
+                button.addEventListener('click', onOpenClick);
+            });
+        }
+
+        function onDownloadClick() {
+            const filename = this.dataset.filename;
+            window.location.href = `/uploads/${filename}`;
+        }
+
+        function onDeleteClick() {
+            const filename = this.dataset.filename;
+            fetch(`/delete/${filename}`, {
+                method: 'DELETE'
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log(data);
+                updateFileList();
+            })
+            .catch(error => console.error('Error:', error));
+        }
+
+        function onEditClick() {
+            const filename = this.dataset.filename;
+            window.location.href = `/edit/${filename}`;
+        }
+
+        function onExtractClick() {
+            const filename = this.dataset.filename;
+            const li = document.querySelector(`#fileList li[data-filename="${filename}"]`);
+            if (li) {
+                li.classList.add('extracting');
+            }
+            fetch(`/extract/${filename}`, {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log(data);
+                if (li) {
+                    li.classList.remove('extracting');
+                }
+                updateFileList();
+                if (data.error) {
+                    alert(data.error);
+                } else {
+                    alert('Archive extracted successfully!');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                if (li) {
+                    li.classList.remove('extracting');
+                }
+                alert('Error extracting archive!');
+            });
+        }
+
+        function onOpenClick() {
+            const filename = this.dataset.filename;
+            window.location.href = `/folder/${filename}`;
+        }
+
+        // Обновляем список файлов при загрузке страницы
+        updateFileList();
+    </script>
+</body>
+</html>

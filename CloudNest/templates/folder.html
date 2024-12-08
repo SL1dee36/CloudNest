@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/static/style.css">
+    <title>{{ foldername }}</title>
+</head>
+<body>
+    <div class="container">
+        <div class="top-block">
+            <h1><a href="/">Удаленное хранилище</a> / {{ foldername }}</h1>
+        </div>
+        <div class="bottom-block">
+            <h2>Файлы:</h2>
+            <ul id="fileList">
+                {% for item in items %}
+                <li data-filename="{{ item.name }}">
+                    {% if item.is_dir %}
+                        <span class="item-name folder">{{ item.name }}</span>
+                        <span class="item-size">{{ item.size|filesizeformat }}</span>
+                        <button class="download-btn" data-filename="{{ foldername }}/{{ item.name }}">Download</button>
+                        <button class="delete-btn" data-filename="{{ foldername }}/{{ item.name }}">Delete</button>
+                        <button class="open-btn" data-filename="{{ foldername }}/{{ item.name }}">Open</button>
+                    {% else %}
+                        {% set isArchive = item.is_archive %}
+                        {% set editableExtensions = ('.txt', '.html', '.css', '.js', '.py', '.json', '.xml', '.csv', '.md', '.log') %}
+                        {% set isEditable = item.name.lower()|string|truncate(255, True, '')|reverse|slice(1)|first|reverse in editableExtensions %}
+                        <span class="item-name {{ 'archive' if isArchive else '' }}">{{ item.name }}</span>
+                        <span class="item-type">{{ item.type }}</span>
+                        <span class="item-size">{{ item.size|filesizeformat }}</span>
+                        <button class="download-btn" data-filename="{{ foldername }}/{{ item.name }}">Download</button>
+                        <button class="delete-btn" data-filename="{{ foldername }}/{{ item.name }}">Delete</button>
+                        <button class="edit-btn" data-filename="{{ foldername }}/{{ item.name }}" {% if not isEditable %}style="display: none;"{% endif %}>Edit</button>
+                        <button class="extract-btn" data-filename="{{ foldername }}/{{ item.name }}" {% if not isArchive %}style="display: none;"{% endif %}>Extract</button>
+                    {% endif %}
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    <script>
+        const fileList = document.getElementById('fileList');
+
+        function addEventListenersToButtons() {
+            document.querySelectorAll('.download-btn').forEach(button => {
+                button.removeEventListener('click', onDownloadClick);
+                button.addEventListener('click', onDownloadClick);
+            });
+
+            document.querySelectorAll('.delete-btn').forEach(button => {
+                button.removeEventListener('click', onDeleteClick);
+                button.addEventListener('click', onDeleteClick);
+            });
+
+            document.querySelectorAll('.edit-btn').forEach(button => {
+                button.removeEventListener('click', onEditClick);
+                button.addEventListener('click', onEditClick);
+            });
+
+            document.querySelectorAll('.extract-btn').forEach(button => {
+                button.removeEventListener('click', onExtractClick);
+                button.addEventListener('click', onExtractClick);
+            });
+
+            document.querySelectorAll('.open-btn').forEach(button => {
+                button.removeEventListener('click', onOpenClick);
+                button.addEventListener('click', onOpenClick);
+            });
+        }
+
+        function onDownloadClick() {
+            const filename = this.dataset.filename;
+            window.location.href = `/uploads/${filename}`;
+        }
+
+        function onDeleteClick() {
+            const filename = this.dataset.filename;
+            fetch(`/delete/${filename}`, {
+                method: 'DELETE'
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log(data);
+                updateFileList();
+            })
+            .catch(error => console.error('Error:', error));
+        }
+
+        function onEditClick() {
+            const filename = this.dataset.filename;
+            window.location.href = `/edit/${filename}`;
+        }
+        
+        function onExtractClick() {
+            const filename = this.dataset.filename;
+            const li = document.querySelector(`#fileList li[data-filename="${filename}"]`);
+            if (li) {
+                li.classList.add('extracting');
+            }
+            fetch(`/extract/${filename}`, {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log(data);
+                if (li) {
+                    li.classList.remove('extracting');
+                }
+                updateFileList();
+                if (data.error) {
+                    alert(data.error);
+                } else {
+                    alert('Archive extracted successfully!');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                if (li) {
+                    li.classList.remove('extracting');
+                }
+                alert('Error extracting archive!');
+            });
+        }
+        
+        function onOpenClick() {
+            const filename = this.dataset.filename;
+            window.location.href = `/folder/${filename}`;
+        }
+
+        function updateFileList() {
+            location.reload();
+        }
+
+        addEventListenersToButtons();
+    </script>
+</body>
+</html>
