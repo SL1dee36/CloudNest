@@ -9,30 +9,45 @@
 <body>
     <div class="container">
         <div class="top-block">
-            <h1><a href="/">Удаленное хранилище</a> / {{ foldername }}</h1>
+            <h1><a href="/">Удаленное хранилище</a>
+                {% set path_parts = foldername.split('/') %}
+                {% set current_path = '' %}
+                {% for part in path_parts %}
+                     {% set current_path = current_path + part  %}
+                    / <a href="/folder/{{ current_path }}">{{ part }}</a>
+                    {% set current_path = current_path + '/' %}
+                {% endfor %}
+            </h1>
         </div>
         <div class="bottom-block">
             <h2>Файлы:</h2>
-            <ul id="fileList">
+            <div class="view-toggle">
+                <button id="toggleViewButton">Переключить вид</button>
+            </div>
+            <ul id="fileList" class="list-view">
                 {% for item in items %}
                 <li data-filename="{{ item.name }}">
                     {% if item.is_dir %}
-                        <span class="item-name folder">{{ item.name }}</span>
+                        <span class="item-name folder" data-filename="{{ foldername }}/{{ item.name }}">{{ item.name }}</span>
                         <span class="item-size">{{ item.size|filesizeformat }}</span>
                         <button class="download-btn" data-filename="{{ foldername }}/{{ item.name }}">Download</button>
-                        <button class="delete-btn" data-filename="{{ foldername }}/{{ item.name }}">Delete</button>
-                        <button class="open-btn" data-filename="{{ foldername }}/{{ item.name }}">Open</button>
+                         <button class="delete-btn" data-filename="{{ foldername }}/{{ item.name }}">Delete</button>
                     {% else %}
                         {% set isArchive = item.is_archive %}
+                        {% set isImageOrVideo = item.type and item.type.startswith(('image/', 'video/')) %}
                         {% set editableExtensions = ('.txt', '.html', '.css', '.js', '.py', '.json', '.xml', '.csv', '.md', '.log') %}
-                        {% set isEditable = item.name.lower()|string|truncate(255, True, '')|reverse|slice(1)|first|reverse in editableExtensions %}
-                        <span class="item-name {{ 'archive' if isArchive else '' }}">{{ item.name }}</span>
+                         {% set isEditable = item.name.lower()|string|truncate(255, True, '')|reverse|slice(1)|first|reverse in editableExtensions %}
+                         <span class="item-name {{ 'archive' if isArchive else '' }}"  data-filename="{{ foldername }}/{{ item.name }}">{{ item.name }}</span>
+                        {% if item.thumbnail %}
+                             <img class="item-thumbnail" src="{{ request.base_url }}{{ item.thumbnail }}" alt="{{ item.name }}" style="display: none;">
+                        {% endif %}
                         <span class="item-type">{{ item.type }}</span>
                         <span class="item-size">{{ item.size|filesizeformat }}</span>
                         <button class="download-btn" data-filename="{{ foldername }}/{{ item.name }}">Download</button>
-                        <button class="delete-btn" data-filename="{{ foldername }}/{{ item.name }}">Delete</button>
                         <button class="edit-btn" data-filename="{{ foldername }}/{{ item.name }}" {% if not isEditable %}style="display: none;"{% endif %}>Edit</button>
                         <button class="extract-btn" data-filename="{{ foldername }}/{{ item.name }}" {% if not isArchive %}style="display: none;"{% endif %}>Extract</button>
+                       <button class="delete-btn" data-filename="{{ foldername }}/{{ item.name }}">Delete</button>
+
                     {% endif %}
                 </li>
                 {% endfor %}
@@ -41,39 +56,86 @@
     </div>
     <script>
         const fileList = document.getElementById('fileList');
-
+        const toggleViewButton = document.getElementById('toggleViewButton');
+    
         function addEventListenersToButtons() {
             document.querySelectorAll('.download-btn').forEach(button => {
                 button.removeEventListener('click', onDownloadClick);
                 button.addEventListener('click', onDownloadClick);
             });
-
+    
             document.querySelectorAll('.delete-btn').forEach(button => {
                 button.removeEventListener('click', onDeleteClick);
                 button.addEventListener('click', onDeleteClick);
             });
-
+    
             document.querySelectorAll('.edit-btn').forEach(button => {
                 button.removeEventListener('click', onEditClick);
                 button.addEventListener('click', onEditClick);
             });
-
+    
             document.querySelectorAll('.extract-btn').forEach(button => {
                 button.removeEventListener('click', onExtractClick);
                 button.addEventListener('click', onExtractClick);
             });
-
-            document.querySelectorAll('.open-btn').forEach(button => {
-                button.removeEventListener('click', onOpenClick);
-                button.addEventListener('click', onOpenClick);
+            
+             document.querySelectorAll('#fileList li').forEach(item => {
+                item.removeEventListener('click', onItemClick);
+                item.addEventListener('click', onItemClick);
             });
         }
-
+        
+        function onItemClick(event) {
+            const target = event.target;
+            
+            // Проверяем, что клик не был на кнопке внутри li
+            if (target.closest('button')) {
+                return; // Если кликнули на кнопку, ничего не делаем
+            }
+            
+            const li = this; // this теперь указывает на <li>
+            let filename = li.dataset.filename;
+            const isFolder = li.querySelector('.item-name').classList.contains('folder');
+            const itemTypeElement = li.querySelector('.item-type');
+            const itemType = itemTypeElement ? itemTypeElement.textContent : '';
+            const isImageOrVideo = itemType.startsWith('image/') || itemType.startsWith('video/');
+            const isEditable = li.querySelector('.item-name').classList.contains('archive') || (li.querySelector('.edit-btn') && li.querySelector('.edit-btn').style.display !== 'none');
+            
+             if (isFolder) {
+                // Получаем текущий путь из URL
+                let currentPath = window.location.pathname;
+                 // Если текущий путь не заканчивается на "/", удаляем его
+                if (currentPath.endsWith('/')) {
+                   currentPath = currentPath.slice(0, -1);
+                }
+                // Извлекаем имя текущей папки из URL
+                const pathParts = currentPath.split('/');
+                const currentFolderName = pathParts[pathParts.length - 1];
+                 let newPath;
+                // Собираем новый путь, если имя текущей папки не содержится в filename (т.е. это подпапка)
+                 if (filename.startsWith(currentFolderName)) {
+                    newPath = `/folder/${filename}`;
+                    } else {
+                       newPath = `/folder${currentPath}/${filename}`
+                    }
+    
+    
+                  window.location.href = newPath;
+               }
+               else if (isImageOrVideo)
+               {
+                     window.location.href = `/view/${filename}`;
+                }
+               else if (isEditable) {
+                   window.location.href = `/edit/${filename}`;
+                }
+            }
+    
         function onDownloadClick() {
             const filename = this.dataset.filename;
             window.location.href = `/uploads/${filename}`;
         }
-
+    
         function onDeleteClick() {
             const filename = this.dataset.filename;
             fetch(`/delete/${filename}`, {
@@ -86,15 +148,15 @@
             })
             .catch(error => console.error('Error:', error));
         }
-
+    
         function onEditClick() {
             const filename = this.dataset.filename;
             window.location.href = `/edit/${filename}`;
         }
-        
+    
         function onExtractClick() {
             const filename = this.dataset.filename;
-            const li = document.querySelector(`#fileList li[data-filename="${filename}"]`);
+            const li = document.querySelector(`#fileList li[data-filename="${filename.split('/').pop()}"]`);
             if (li) {
                 li.classList.add('extracting');
             }
@@ -103,10 +165,10 @@
             })
             .then(response => response.json())
             .then(data => {
-                console.log(data);
                 if (li) {
                     li.classList.remove('extracting');
                 }
+                console.log(data);
                 updateFileList();
                 if (data.error) {
                     alert(data.error);
@@ -115,23 +177,27 @@
                 }
             })
             .catch(error => {
-                console.error('Error:', error);
                 if (li) {
                     li.classList.remove('extracting');
                 }
+                console.error('Error:', error);
                 alert('Error extracting archive!');
             });
         }
-        
-        function onOpenClick() {
-            const filename = this.dataset.filename;
-            window.location.href = `/folder/${filename}`;
-        }
-
+    
+    
         function updateFileList() {
             location.reload();
         }
-
+    
+         toggleViewButton.addEventListener('click', () => {
+            fileList.classList.toggle('list-view');
+            fileList.classList.toggle('grid-view');
+            document.querySelectorAll('.item-thumbnail').forEach(item => {
+                item.style.display = fileList.classList.contains('grid-view') ? 'block' : 'none';
+            })
+        });
+    
         addEventListenersToButtons();
     </script>
 </body>

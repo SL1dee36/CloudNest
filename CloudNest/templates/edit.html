@@ -20,16 +20,16 @@
             resize: vertical;
         }
         button {
-            background-color: #4CAF50;
+            background-color: #242424;
+            border: 1px solid #7c7c7c;
             color: white;
             padding: 8px 15px;
-            border: none;
             border-radius: 5px;
             cursor: pointer;
             margin-top: 10px;
         }
         button:hover {
-            background-color: #367c39;
+            background-color: #353535;
         }
         .container{
             padding: 20px;
@@ -37,15 +37,69 @@
             border: 1px solid #7c7c7c;
             margin: 10px;
         }
+        .button-group {
+            display: flex;
+            justify-content: flex-end;
+             margin-top: 10px;
+        }
+        .button-group button{
+             margin-left: 5px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Редактирование {{ filename }}</h1>
-        <form action="/save/{{ filename }}" method="post">
+        <form id="editForm"  method="post">
             <textarea name="content">{{ content }}</textarea>
-            <button type="submit">Сохранить</button>
+            <div class="button-group">
+              <button type="submit">Сохранить</button>
+              <button type="button" id="deleteButton">Удалить</button>
+              <button type="button" id="backButton">Назад</button>
+           </div>
         </form>
     </div>
+      <script>
+         const form = document.getElementById('editForm');
+         const deleteButton = document.getElementById('deleteButton');
+         const backButton = document.getElementById('backButton');
+         const filename = '{{ filename }}';
+      
+          form.addEventListener('submit', function(event) {
+              event.preventDefault(); // Предотвратить стандартную отправку формы
+
+              const formData = new FormData(form);
+                fetch(`/save/${filename}`, {
+                    method: 'POST',
+                    body: formData,
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if(data.message){
+                        window.location.reload();
+                     }
+                     else{
+                         alert(data.error)
+                     }
+                   })
+                 .catch(error => console.error('Error:', error));
+          });
+
+         deleteButton.addEventListener('click', () => {
+               fetch(`/delete/${filename}`, {
+                method: 'DELETE'
+                 })
+                 .then(response => response.json())
+                 .then(data => {
+                    console.log(data);
+                       window.history.back();
+                   })
+                   .catch(error => console.error('Error:', error));
+           });
+          
+         backButton.addEventListener('click', () => {
+               window.history.back();
+           });
+    </script>
 </body>
 </html>

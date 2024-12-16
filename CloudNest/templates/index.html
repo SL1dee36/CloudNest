@@ -15,15 +15,20 @@
         </div>
         <div class="bottom-block">
             <h2>Файлы:</h2>
-            <ul id="fileList">
+            <div class="view-toggle">
+                <button id="toggleViewButton">Переключить вид</button>
+            </div>
+            <ul id="fileList" class="list-view">
                 <!-- Здесь будут отображаться файлы -->
             </ul>
         </div>
     </div>
-    <script>
+     <script>
         const fileList = document.getElementById('fileList');
         const uploadButton = document.getElementById('uploadButton');
         const fileInput = document.getElementById('fileInput');
+        const toggleViewButton = document.getElementById('toggleViewButton');
+
 
         // Функция для обновления списка файлов
         function updateFileList() {
@@ -37,25 +42,27 @@
 
                         // Определение типа файла на клиенте
                         const isArchive = isArchiveFile(item.name);
-
+                         const isImageOrVideo = item.type && item.type.startsWith(('image/', 'video/'));
                         if (item.is_dir) {
-                            li.innerHTML = `
-                                <span class="item-name folder">${item.name}</span>
+                             li.innerHTML = `
+                                <span class="item-name folder" data-filename="${item.name}">${item.name}</span>
                                 <span class="item-size">${formatBytes(item.size)}</span>
                                 <button class="download-btn" data-filename="${item.name}">Download</button>
                                 <button class="delete-btn" data-filename="${item.name}">Delete</button>
-                                <button class="open-btn" data-filename="${item.name}">Open</button>
+
                             `;
                         } else {
-                            const isEditable = isEditableFile(item.name);
+                             const thumbnailUrl = item.thumbnail;
+                             const isEditable = isEditableFile(item.name);
                             li.innerHTML = `
-                                <span class="item-name ${isArchive ? 'archive' : ''}">${item.name}</span>
+                                <span class="item-name ${isArchive ? 'archive' : ''}" data-filename="${item.name}">${item.name}</span>
+                                ${thumbnailUrl ? `<img class="item-thumbnail" src="${thumbnailUrl}" alt="${item.name}" style="display: ${fileList.classList.contains('grid-view') ? 'block' : 'none'};">` : ''}
                                 <span class="item-type">${item.type}</span>
                                 <span class="item-size">${formatBytes(item.size)}</span>
                                 <button class="download-btn" data-filename="${item.name}">Download</button>
-                                <button class="delete-btn" data-filename="${item.name}">Delete</button>
                                 <button class="edit-btn" data-filename="${item.name}" ${isEditable ? '' : 'style="display: none;"'}>Edit</button>
                                 <button class="extract-btn" data-filename="${item.name}" ${isArchive ? '' : 'style="display: none;"'}>Extract</button>
+                                 <button class="delete-btn" data-filename="${item.name}">Delete</button>
                             `;
                         }
                         fileList.appendChild(li);
@@ -73,11 +80,12 @@
         }
 
         // Функция для определения, является ли файл редактируемым (на основе расширения)
-        function isEditableFile(filename) {
+         function isEditableFile(filename) {
             const editableExtensions = ['.txt', '.html', '.css', '.js', '.py', '.json', '.xml', '.csv', '.md', '.log']; // и другие текстовые форматы
             const ext = filename.slice(filename.lastIndexOf('.')).toLowerCase();
             return editableExtensions.includes(ext);
         }
+
 
         // Функция для форматирования размера файла
         function formatBytes(bytes, decimals = 2) {
@@ -112,14 +120,13 @@
                     li = document.createElement('li');
                     li.dataset.filename = file.name;
                     li.innerHTML = `
-                        <span class="item-name">${file.name}</span>
+                        <span class="item-name" data-filename="${file.name}">${file.name}</span>
                         <span class="item-type"></span>
                         <span class="item-size">Uploading...</span>
                         <button class="download-btn" data-filename="${file.name}" style="display: none;">Download</button>
                         <button class="delete-btn" data-filename="${file.name}" style="display: none;">Delete</button>
-                        <button class="open-btn" data-filename="${file.name}" style="display: none;">Open</button>
-                        <button class="edit-btn" data-filename="${file.name}" style="display: none;">Edit</button>
-                        <button class="extract-btn" data-filename="${file.name}" style="display: none;">Extract</button>
+                         <button class="edit-btn" data-filename="${file.name}" style="display: none;">Edit</button>
+                         <button class="extract-btn" data-filename="${file.name}" style="display: none;">Extract</button>
                     `;
                     fileList.appendChild(li);
                 }
@@ -190,14 +197,18 @@
                           .then(data => {
                             data.items.forEach(item => {
                               if(item.name == li.dataset.filename){
-                                if (item.is_dir) {
-                                  li.querySelector('.item-name').classList.add('folder');
-                                  li.querySelector('.item-type').textContent = '';
+                                  if (item.is_dir) {
+                                      li.querySelector('.item-name').classList.add('folder');
+                                     li.querySelector('.item-type').textContent = '';
                                 }
                                 else{
-                                  li.querySelector('.item-type').textContent = item.type;
+                                     li.querySelector('.item-type').textContent = item.type;
                                 }
                                 itemSize.textContent = formatBytes(item.size);
+                                if (item.thumbnail){
+                                  li.innerHTML = li.innerHTML.replace(/<img class="item-thumbnail".*?>/,"");
+                                   li.querySelector('.item-name').insertAdjacentHTML('beforebegin', `<img class="item-thumbnail" src="${item.thumbnail}" alt="${item.name}" style="display: ${fileList.classList.contains('grid-view') ? 'block' : 'none'};">`);
+                                }
                               }
                             })
                           });
@@ -205,20 +216,18 @@
                         // Обновляем кнопки после завершения загрузки
                         const downloadBtn = li.querySelector('.download-btn');
                         const deleteBtn = li.querySelector('.delete-btn');
-                        const openBtn = li.querySelector('.open-btn');
                         const editBtn = li.querySelector('.edit-btn');
                         const extractBtn = li.querySelector('.extract-btn');
+
                         if (downloadBtn) downloadBtn.style.display = 'inline-block';
                         if (deleteBtn) deleteBtn.style.display = 'inline-block';
-                        if (item.is_dir){
-                            if (openBtn) openBtn.style.display = 'inline-block';
-                        }
-                        else{
+
+                        if (!item.is_dir){
                             if (editBtn) editBtn.style.display = isEditableFile(item.name) ? 'inline-block' : 'none';
                             if (extractBtn) extractBtn.style.display = isArchiveFile(item.name) ? 'inline-block' : 'none';
                         }
                     }
-                    updateFileList();
+                     updateFileList();
                 })
                 .catch(error => {
                     console.error('Error:', error);
@@ -255,11 +264,52 @@
                 button.removeEventListener('click', onExtractClick);
                 button.addEventListener('click', onExtractClick);
             });
-
-            document.querySelectorAll('.open-btn').forEach(button => {
-                button.removeEventListener('click', onOpenClick);
-                button.addEventListener('click', onOpenClick);
+            
+              document.querySelectorAll('#fileList li').forEach(item => {
+                 item.removeEventListener('click', onItemClick);
+                 item.addEventListener('click', onItemClick);
             });
+        }
+        
+        function onItemClick(event) {
+            const target = event.target;
+
+             // Проверяем, что клик не был на кнопке внутри li
+            if (target.closest('button')) {
+                return; // Если кликнули на кнопку, ничего не делаем
+            }
+             const li = this; // this теперь указывает на <li>
+            let filename = li.dataset.filename;
+
+            const isFolder = li.querySelector('.item-name').classList.contains('folder');
+            const itemTypeElement = li.querySelector('.item-type');
+            const itemType = itemTypeElement ? itemTypeElement.textContent : '';
+            const isImageOrVideo = itemType.startsWith('image/') || itemType.startsWith('video/');
+            const isEditable = li.querySelector('.item-name').classList.contains('archive') || (li.querySelector('.edit-btn') && li.querySelector('.edit-btn').style.display !== 'none');
+
+            let currentPath = window.location.pathname;
+             if (currentPath.endsWith('/')) {
+                currentPath = currentPath.slice(0, -1);
+            }
+           if (isFolder) {
+                let newPath;
+              const pathParts = currentPath.split('/');
+               const currentFolderName = pathParts[pathParts.length - 1];
+                if (filename.startsWith(currentFolderName)) {
+                     newPath = `/folder/${filename}/${filename}`;
+                }
+                else{
+                  newPath = `/folder/${currentPath}/${filename}`
+                }
+                 window.location.href = newPath;
+            }
+           else if (isImageOrVideo)
+           {
+                 window.location.href = `/view/${filename}`;
+            }
+           else if (isEditable) {
+               window.location.href = `/edit/${filename}`;
+            }
         }
 
         function onDownloadClick() {
@@ -287,7 +337,7 @@
 
         function onExtractClick() {
             const filename = this.dataset.filename;
-            const li = document.querySelector(`#fileList li[data-filename="${filename}"]`);
+             const li = document.querySelector(`#fileList li[data-filename="${filename}"]`);
             if (li) {
                 li.classList.add('extracting');
             }
@@ -296,10 +346,10 @@
             })
             .then(response => response.json())
             .then(data => {
-                console.log(data);
-                if (li) {
+                 if (li) {
                     li.classList.remove('extracting');
                 }
+                console.log(data);
                 updateFileList();
                 if (data.error) {
                     alert(data.error);
@@ -308,18 +358,21 @@
                 }
             })
             .catch(error => {
-                console.error('Error:', error);
-                if (li) {
+                 if (li) {
                     li.classList.remove('extracting');
                 }
+                console.error('Error:', error);
                 alert('Error extracting archive!');
             });
         }
 
-        function onOpenClick() {
-            const filename = this.dataset.filename;
-            window.location.href = `/folder/${filename}`;
-        }
+        toggleViewButton.addEventListener('click', () => {
+            fileList.classList.toggle('list-view');
+            fileList.classList.toggle('grid-view');
+            document.querySelectorAll('.item-thumbnail').forEach(item => {
+                item.style.display = fileList.classList.contains('grid-view') ? 'block' : 'none';
+            })
+        });
 
         // Обновляем список файлов при загрузке страницы
         updateFileList();

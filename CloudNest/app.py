@@ -1,19 +1,85 @@
 import os
 import zipfile
-import tarfile  # Добавляем импорт tarfile
-from flask import Flask, render_template, request, send_from_directory, jsonify
+import tarfile
+from flask import Flask, render_template, request, send_from_directory, jsonify, url_for
 from werkzeug.utils import secure_filename
 import mimetypes
 import shutil
+from PIL import Image
+from moviepy import VideoFileClip
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='static')
 
 # Конфигурация загрузок
 app.config['UPLOAD_FOLDER'] = 'uploads/'
+app.config['THUMBNAIL_FOLDER'] = 'thumbnails/'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024 * 1024  # Максимальный размер файла 16GB
 
 # Инициализация mimetypes
 mimetypes.init()
+
+# Создание папки для миниатюр, если ее нет
+if not os.path.exists(app.config['THUMBNAIL_FOLDER']):
+    os.makedirs(app.config['THUMBNAIL_FOLDER'])
+
+def generate_thumbnail(filepath, filename):
+    thumbnail_path = os.path.join(app.config['THUMBNAIL_FOLDER'], f"{os.path.splitext(filename)[0]}.jpg")
+    if os.path.exists(thumbnail_path):
+        return thumbnail_path # Если миниатюра уже есть, возвращаем путь к ней
+    try:
+        mime_type = mimetypes.guess_type(filepath)[0]
+        if mime_type and mime_type.startswith('image'):
+            image = Image.open(filepath)
+            
+            # Получаем размеры изображения
+            width, height = image.size
+
+            # Определяем размер стороны квадрата для обрезки
+            size = min(width, height)
+            
+            # Вычисляем координаты для обрезки, чтобы центр был неизменным
+            left = (width - size) / 2
+            top = (height - size) / 2
+            right = (width + size) / 2
+            bottom = (height + size) / 2
+
+            # Обрезаем изображение
+            image = image.crop((left, top, right, bottom))
+            
+            # Изменяем размер до желаемого размера миниатюры
+            image = image.resize((200, 200))
+
+            image.save(thumbnail_path)
+        elif mime_type and mime_type.startswith('video'):
+            clip = VideoFileClip(filepath)
+            if clip.duration > 0:
+                frame = clip.get_frame(min(1, clip.duration/2))
+                img = Image.fromarray(frame)
+                # Получаем размеры изображения
+                width, height = img.size
+
+                # Определяем размер стороны квадрата для обрезки
+                size = min(width, height)
+                
+                # Вычисляем координаты для обрезки, чтобы центр был неизменным
+                left = (width - size) / 2
+                top = (height - size) / 2
+                right = (width + size) / 2
+                bottom = (height + size) / 2
+
+                # Обрезаем изображение
+                img = img.crop((left, top, right, bottom))
+                
+                # Изменяем размер до желаемого размера миниатюры
+                img = img.resize((200, 200))
+                img.save(thumbnail_path)
+            clip.close()
+        else:
+            return None
+        return thumbnail_path
+    except Exception as e:
+        print(f"Error generating thumbnail: {e}")
+        return None
 
 # Главная страница
 @app.route('/')
@@ -66,6 +132,12 @@ def delete_file(filename):
             shutil.rmtree(filepath)  # Удаление директории со всем содержимым
         else:
             os.remove(filepath)
+        
+        # Удаление миниатюры
+        thumbnail_path = os.path.join(app.config['THUMBNAIL_FOLDER'], f"{os.path.splitext(filename)[0]}.jpg")
+        if os.path.exists(thumbnail_path):
+            os.remove(thumbnail_path)
+            
         update_file_list()
         return jsonify({'message': 'File deleted successfully'})
     except OSError as e:
@@ -98,12 +170,14 @@ def list_files():
                              mime_type.startswith('application/x-bzip2')):
                 is_archive = True
 
+        thumbnail_path = generate_thumbnail(item_path, item_name) # Генерируем или получаем миниатюру
         item_info = {
             'name': item_name,
             'is_dir': is_dir,
             'size': size,
             'type': mimetypes.guess_type(item_path)[0] or ('folder' if is_dir else 'Unknown'),
-            'is_archive': is_archive  # Добавляем информацию о том, является ли файл архивом
+            'is_archive': is_archive,
+           'thumbnail':  url_for('thumbnails', filename=os.path.basename(thumbnail_path)) if thumbnail_path else None
         }
         items.append(item_info)
     return jsonify({'items': items})
@@ -201,17 +275,36 @@ def open_folder(foldername):
                              mime_type.startswith('application/gzip') or
                              mime_type.startswith('application/x-bzip2')):
                 is_archive = True
-
+                
+        thumbnail_path = generate_thumbnail(item_path, item_name)
+        
         item_info = {
             'name': item_name,
             'is_dir': is_dir,
             'size': size,
             'type': mimetypes.guess_type(item_path)[0] or ('folder' if is_dir else 'Unknown'),
-            'is_archive': is_archive
+            'is_archive': is_archive,
+             'thumbnail':  url_for('thumbnails', filename=os.path.basename(thumbnail_path)) if thumbnail_path else None
         }
         items.append(item_info)
 
     return render_template('folder.html', foldername=foldername, items=items)
+
+@app.route('/view/<path:filename>')
+def view_file(filename):
+    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    if not os.path.isfile(filepath):
+        return jsonify({'error': 'File not found'}), 404
+    mime_type = mimetypes.guess_type(filepath)[0]
+    if mime_type and mime_type.startswith(('image/', 'video/')):
+         return render_template('view.html', filename=filename, mime_type=mime_type)
+    else:
+      return jsonify({'error': 'Can\'t view this file'}), 400
+
+@app.route('/thumbnails/<path:filename>')
+def thumbnails(filename):
+    return send_from_directory(app.config['THUMBNAIL_FOLDER'], filename)
+
 
 def is_editable_file(filename):
     editable_extensions = ['.txt', '.html', '.css', '.js', '.py', '.json', '.xml', '.csv', '.md', '.log'] # и другие текстовые форматы
