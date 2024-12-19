@@ -22,10 +22,15 @@ mimetypes.init()
 if not os.path.exists(app.config['THUMBNAIL_FOLDER']):
     os.makedirs(app.config['THUMBNAIL_FOLDER'])
 
-def generate_thumbnail(filepath, filename):
-    thumbnail_path = os.path.join(app.config['THUMBNAIL_FOLDER'], f"{os.path.splitext(filename)[0]}.jpg")
+def generate_thumbnail(filepath, filename, current_path=None):
+    if current_path:
+        thumbnail_filename = os.path.join(current_path,f"{os.path.splitext(filename)[0]}.jpg")
+        thumbnail_path = os.path.join(app.config['THUMBNAIL_FOLDER'],thumbnail_filename)
+    else:
+        thumbnail_path = os.path.join(app.config['THUMBNAIL_FOLDER'], f"{os.path.splitext(filename)[0]}.jpg")
+        
     if os.path.exists(thumbnail_path):
-        return thumbnail_path # Если миниатюра уже есть, возвращаем путь к ней
+        return thumbnail_path  # Если миниатюра уже есть, возвращаем путь к ней
     try:
         mime_type = mimetypes.guess_type(filepath)[0]
         if mime_type and mime_type.startswith('image'):
@@ -49,6 +54,7 @@ def generate_thumbnail(filepath, filename):
             # Изменяем размер до желаемого размера миниатюры
             image = image.resize((200, 200))
 
+            os.makedirs(os.path.dirname(thumbnail_path), exist_ok=True)
             image.save(thumbnail_path)
         elif mime_type and mime_type.startswith('video'):
             clip = VideoFileClip(filepath)
@@ -72,6 +78,7 @@ def generate_thumbnail(filepath, filename):
                 
                 # Изменяем размер до желаемого размера миниатюры
                 img = img.resize((200, 200))
+                os.makedirs(os.path.dirname(thumbnail_path), exist_ok=True)
                 img.save(thumbnail_path)
             clip.close()
         else:
@@ -276,7 +283,7 @@ def open_folder(foldername):
                              mime_type.startswith('application/x-bzip2')):
                 is_archive = True
                 
-        thumbnail_path = generate_thumbnail(item_path, item_name)
+        thumbnail_path = generate_thumbnail(item_path, item_name, current_path=foldername)
         
         item_info = {
             'name': item_name,
@@ -309,6 +316,93 @@ def thumbnails(filename):
 def is_editable_file(filename):
     editable_extensions = ['.txt', '.html', '.css', '.js', '.py', '.json', '.xml', '.csv', '.md', '.log'] # и другие текстовые форматы
     return filename.lower().endswith(tuple(editable_extensions))
+
+# Добавленные маршруты для создания папок, файлов и переименования
+@app.route('/create_folder', methods=['POST'])
+def create_folder():
+    folder_name = request.form.get('folderName')
+    current_path = request.form.get('currentPath')
+    if not folder_name:
+       return jsonify({'error': 'Folder name is required'}), 400
+    
+    if current_path:
+       folder_path = os.path.join(app.config['UPLOAD_FOLDER'], current_path, folder_name)
+    else:
+        folder_path = os.path.join(app.config['UPLOAD_FOLDER'], folder_name)
+    
+    try:
+        if os.path.exists(folder_path):
+           return jsonify({'error': 'Folder already exists'}), 400
+        os.makedirs(folder_path)
+        update_file_list()
+        return jsonify({'message': 'Folder created successfully'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/create_file', methods=['POST'])
+def create_file():
+    file_name = request.form.get('fileName')
+    file_content = request.form.get('fileContent', '')
+    current_path = request.form.get('currentPath')
+    if not file_name:
+      return jsonify({'error': 'File name is required'}), 400
+    
+    if current_path:
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'],current_path, file_name)
+    else:
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], file_name)
+
+    try:
+        if os.path.exists(file_path):
+            return jsonify({'error': 'File already exists'}), 400
+        with open(file_path, 'w', encoding='utf-8') as f:
+           f.write(file_content)
+        update_file_list()
+        return jsonify({'message': 'File created successfully'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/rename', methods=['POST'])
+def rename_item():
+    old_name = request.form.get('oldName')
+    new_name = request.form.get('newName')
+    current_path = request.form.get('currentPath')
+
+
+    if not old_name or not new_name:
+         return jsonify({'error': 'Old and new names are required'}), 400
+    
+    if current_path:
+      old_path = os.path.join(app.config['UPLOAD_FOLDER'], current_path, old_name)
+      new_path = os.path.join(app.config['UPLOAD_FOLDER'], current_path, new_name)
+    else:
+        old_path = os.path.join(app.config['UPLOAD_FOLDER'], old_name)
+        new_path = os.path.join(app.config['UPLOAD_FOLDER'], new_name)
+
+    try:
+      if not os.path.exists(old_path):
+         return jsonify({'error': 'File not found'}), 404
+      if os.path.exists(new_path):
+          return jsonify({'error': 'New name already exists'}), 400
+      
+      os.rename(old_path,new_path)
+      # Переименование миниатюры (если есть)
+      
+      if current_path:
+            old_thumbnail_path = os.path.join(app.config['THUMBNAIL_FOLDER'],current_path, f"{os.path.splitext(old_name)[0]}.jpg")
+            new_thumbnail_path = os.path.join(app.config['THUMBNAIL_FOLDER'],current_path, f"{os.path.splitext(new_name)[0]}.jpg")
+      else:
+            old_thumbnail_path = os.path.join(app.config['THUMBNAIL_FOLDER'], f"{os.path.splitext(old_name)[0]}.jpg")
+            new_thumbnail_path = os.path.join(app.config['THUMBNAIL_FOLDER'], f"{os.path.splitext(new_name)[0]}.jpg")
+
+
+      if os.path.exists(old_thumbnail_path):
+          os.rename(old_thumbnail_path, new_thumbnail_path)
+      update_file_list()
+      return jsonify({'message': 'Item renamed successfully'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 
 if __name__ == '__main__':
     if not os.path.exists(app.config['UPLOAD_FOLDER']):

@@ -5,55 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="static/style.css">
     <title>Удаленное хранилище</title>
-    <style>
-        /* Стили для модальных окон */
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            overflow: auto;
-            background-color: rgba(0,0,0,0.4); /* Затемнение фона */
-        }
-        .modal-content {
-            background-color: #2c2c2c;
-            margin: 15% auto;
-            padding: 20px;
-            border: 1px solid #7c7c7c;
-            width: 80%;
-            max-width: 600px;
-            border-radius: 10px;
-            position: relative; /* Для позиционирования кнопки закрытия */
-        }
-        .close-button {
-            color: #fff;
-            float: right;
-            font-size: 28px;
-            font-weight: bold;
-            cursor: pointer;
-        }
-          .modal-content form {
-              display: flex;
-              flex-direction: column;
-        }
-         .modal-content form label {
-              margin-bottom: 5px;
-         }
-          .modal-content form input, .modal-content form textarea{
-              background-color: #333;
-              color: #fff;
-              border: none;
-              border-radius: 5px;
-              padding: 10px;
-              margin-bottom: 15px;
-         }
-          .modal-content form textarea{
-              height: 150px;
-         }
-    </style>
+
 </head>
 <body>
     <div class="container">
@@ -113,7 +65,7 @@
            </form>
       </div>
     </div>
-     <script>
+    <script>
         const fileList = document.getElementById('fileList');
         const uploadButton = document.getElementById('uploadButton');
         const fileInput = document.getElementById('fileInput');
@@ -126,7 +78,7 @@
         const closeCreateFileModal = document.getElementById('closeCreateFileModal');
         const createFolderForm = document.getElementById('createFolderForm');
         const createFileForm = document.getElementById('createFileForm');
-        const renameModal = document.getElementById('renameModal');
+         const renameModal = document.getElementById('renameModal');
         const closeRenameModal = document.getElementById('closeRenameModal');
         const renameForm = document.getElementById('renameForm');
         
@@ -141,31 +93,41 @@
                     data.items.forEach(item => {
                         const li = document.createElement('li');
                         li.dataset.filename = item.name;
-                         li.dataset.path = item.name;
+                        li.dataset.path = item.name;
 
                         // Определение типа файла на клиенте
                         const isArchive = isArchiveFile(item.name);
                          const isImageOrVideo = item.type && item.type.startsWith(('image/', 'video/'));
+                        let actionsButton = `<button class="actions-btn">⋯</button>
+                             <div class="actions-menu">
+                         `;
                         if (item.is_dir) {
+                             actionsButton +=  `
+                                <button class="download-btn" data-filename="${item.name}">Download</button>
+                                <button class="delete-btn" data-filename="${item.name}">Delete</button>
+                             </div>
+                            `;
                              li.innerHTML = `
                                 <span class="item-name folder" data-filename="${item.name}">${item.name}</span>
                                 <span class="item-size">${formatBytes(item.size)}</span>
-                                <button class="download-btn" data-filename="${item.name}">Download</button>
-                                <button class="delete-btn" data-filename="${item.name}">Delete</button>
-
+                                ${actionsButton}
                             `;
                         } else {
                              const thumbnailUrl = item.thumbnail;
                              const isEditable = isEditableFile(item.name);
+                                actionsButton += `
+                                <button class="download-btn" data-filename="${item.name}">Download</button>
+                                <button class="edit-btn" data-filename="${item.name}" ${isEditable ? '' : 'style="display: none;"'}>Edit</button>
+                                <button class="extract-btn" data-filename="${item.name}" ${isArchive ? '' : 'style="display: none;"'}>Extract</button>
+                                 <button class="delete-btn" data-filename="${item.name}">Delete</button>
+                            </div>
+                            `;
                             li.innerHTML = `
                                 <span class="item-name ${isArchive ? 'archive' : ''}" data-filename="${item.name}">${item.name}</span>
                                 ${thumbnailUrl ? `<img class="item-thumbnail" src="${thumbnailUrl}" alt="${item.name}" style="display: ${fileList.classList.contains('grid-view') ? 'block' : 'none'};">` : ''}
                                 <span class="item-type">${item.type}</span>
                                 <span class="item-size">${formatBytes(item.size)}</span>
-                                <button class="download-btn" data-filename="${item.name}">Download</button>
-                                <button class="edit-btn" data-filename="${item.name}" ${isEditable ? '' : 'style="display: none;"'}>Edit</button>
-                                <button class="extract-btn" data-filename="${item.name}" ${isArchive ? '' : 'style="display: none;"'}>Extract</button>
-                                 <button class="delete-btn" data-filename="${item.name}">Delete</button>
+                                ${actionsButton}
                             `;
                         }
                         fileList.appendChild(li);
@@ -311,14 +273,15 @@
                     // Если элемента нет, создаем новый
                     li = document.createElement('li');
                     li.dataset.filename = file.name;
+                     li.dataset.path = file.name;
+
                     li.innerHTML = `
                         <span class="item-name" data-filename="${file.name}">${file.name}</span>
                         <span class="item-type"></span>
                         <span class="item-size">Uploading...</span>
-                        <button class="download-btn" data-filename="${file.name}" style="display: none;">Download</button>
-                        <button class="delete-btn" data-filename="${file.name}" style="display: none;">Delete</button>
-                         <button class="edit-btn" data-filename="${file.name}" style="display: none;">Edit</button>
-                         <button class="extract-btn" data-filename="${file.name}" style="display: none;">Extract</button>
+                         <button class="actions-btn">⋯</button>
+                         <div class="actions-menu">
+                         </div>
                     `;
                     fileList.appendChild(li);
                 }
@@ -383,6 +346,7 @@
                     if (li) {
                         li.classList.remove('uploading');
                         const itemSize = li.querySelector('.item-size');
+                        const actionsMenu = li.querySelector('.actions-menu');
                         if (itemSize) {
                           fetch('/list')
                           .then(response => response.json())
@@ -392,9 +356,21 @@
                                   if (item.is_dir) {
                                       li.querySelector('.item-name').classList.add('folder');
                                      li.querySelector('.item-type').textContent = '';
+                                      actionsMenu.innerHTML = `
+                                         <button class="download-btn" data-filename="${item.name}">Download</button>
+                                          <button class="delete-btn" data-filename="${item.name}">Delete</button>
+                                         `;
                                 }
                                 else{
                                      li.querySelector('.item-type').textContent = item.type;
+                                    const isArchive = isArchiveFile(item.name);
+                                    const isEditable = isEditableFile(item.name);
+                                    actionsMenu.innerHTML = `
+                                        <button class="download-btn" data-filename="${item.name}">Download</button>
+                                        <button class="edit-btn" data-filename="${item.name}" ${isEditable ? '' : 'style="display: none;"'}>Edit</button>
+                                        <button class="extract-btn" data-filename="${item.name}" ${isArchive ? '' : 'style="display: none;"'}>Extract</button>
+                                        <button class="delete-btn" data-filename="${item.name}">Delete</button>
+                                    `;
                                 }
                                 itemSize.textContent = formatBytes(item.size);
                                 if (item.thumbnail){
@@ -404,19 +380,6 @@
                               }
                             })
                           });
-                        }
-                        // Обновляем кнопки после завершения загрузки
-                        const downloadBtn = li.querySelector('.download-btn');
-                        const deleteBtn = li.querySelector('.delete-btn');
-                        const editBtn = li.querySelector('.edit-btn');
-                        const extractBtn = li.querySelector('.extract-btn');
-
-                        if (downloadBtn) downloadBtn.style.display = 'inline-block';
-                        if (deleteBtn) deleteBtn.style.display = 'inline-block';
-
-                        if (!item.is_dir){
-                            if (editBtn) editBtn.style.display = isEditableFile(item.name) ? 'inline-block' : 'none';
-                            if (extractBtn) extractBtn.style.display = isArchiveFile(item.name) ? 'inline-block' : 'none';
                         }
                     }
                      updateFileList();
@@ -436,43 +399,64 @@
         });
 
         // Функция добавления обработчиков событий для кнопок
-        function addEventListenersToButtons() {
-            document.querySelectorAll('.download-btn').forEach(button => {
-                button.removeEventListener('click', onDownloadClick);
-                button.addEventListener('click', onDownloadClick);
-            });
+      function addEventListenersToButtons() {
+           console.log('addEventListenersToButtons was triggered');
+            document.querySelectorAll('.actions-btn').forEach(button => {
+               button.removeEventListener('click', onActionsButtonClick);
+                button.addEventListener('click', onActionsButtonClick);
+             });
+              fileList.querySelectorAll('li').forEach(li => {
+                 li.querySelectorAll('.download-btn').forEach(button => {
+                    button.removeEventListener('click', onDownloadClick);
+                    button.addEventListener('click', onDownloadClick);
+                });
 
-            document.querySelectorAll('.delete-btn').forEach(button => {
-                button.removeEventListener('click', onDeleteClick);
-                button.addEventListener('click', onDeleteClick);
-            });
-
-            document.querySelectorAll('.edit-btn').forEach(button => {
-                button.removeEventListener('click', onEditClick);
-                button.addEventListener('click', onEditClick);
-            });
-
-            document.querySelectorAll('.extract-btn').forEach(button => {
-                button.removeEventListener('click', onExtractClick);
-                button.addEventListener('click', onExtractClick);
-            });
-            
-              document.querySelectorAll('#fileList li').forEach(item => {
+                li.querySelectorAll('.delete-btn').forEach(button => {
+                     button.removeEventListener('click', onDeleteClick);
+                    button.addEventListener('click', onDeleteClick);
+                 });
+    
+                li.querySelectorAll('.edit-btn').forEach(button => {
+                    button.removeEventListener('click', onEditClick);
+                   button.addEventListener('click', onEditClick);
+                 });
+    
+                li.querySelectorAll('.extract-btn').forEach(button => {
+                     button.removeEventListener('click', onExtractClick);
+                   button.addEventListener('click', onExtractClick);
+                 });
+              });
+            document.querySelectorAll('#fileList li').forEach(item => {
                  item.removeEventListener('click', onItemClick);
                  item.addEventListener('click', onItemClick);
-            });
+             });
         }
         
-        function onItemClick(event) {
-            const target = event.target;
-
-             // Проверяем, что клик не был на кнопке внутри li
-            if (target.closest('button')) {
-                return; // Если кликнули на кнопку, ничего не делаем
+        function onActionsButtonClick(event) {
+             console.log('onActionsButtonClick was triggered', event);
+            const li = event.currentTarget.closest('li');
+             console.log('li',li);
+            const actionsMenu = li.querySelector('.actions-menu');
+            console.log('actionsMenu',actionsMenu);
+            actionsMenu.classList.toggle('show');
+          }
+        
+        document.addEventListener('click', (event) => {
+           if (!event.target.closest('.actions-menu') && !event.target.closest('.actions-btn')) {
+                document.querySelectorAll('.actions-menu.show').forEach(menu => {
+                     menu.classList.remove('show');
+                });
             }
+        });
+        
+        function onItemClick(event) {
+             const target = event.target;
+            // Проверяем, что клик не был на кнопке или на меню внутри li
+              if (target.closest('button') || target.closest('.actions-menu')) {
+                 return; // Если кликнули на кнопку или меню, ничего не делаем
+           }
              const li = this; // this теперь указывает на <li>
             let filename = li.dataset.filename;
-
             const isFolder = li.querySelector('.item-name').classList.contains('folder');
             const itemTypeElement = li.querySelector('.item-type');
             const itemType = itemTypeElement ? itemTypeElement.textContent : '';
@@ -480,7 +464,7 @@
             const isEditable = li.querySelector('.item-name').classList.contains('archive') || (li.querySelector('.edit-btn') && li.querySelector('.edit-btn').style.display !== 'none');
 
             let currentPath = window.location.pathname;
-             if (currentPath.endsWith('/')) {
+            if (currentPath.endsWith('/')) {
                 currentPath = currentPath.slice(0, -1);
             }
            if (isFolder) {

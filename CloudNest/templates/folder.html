@@ -30,28 +30,31 @@
             <ul id="fileList" class="list-view">
                 {% for item in items %}
                 <li data-filename="{{ item.name }}" data-path="{{ foldername }}">
-                    {% if item.is_dir %}
-                        <span class="item-name folder" data-filename="{{ foldername }}/{{ item.name }}">{{ item.name }}</span>
-                        <span class="item-size">{{ item.size|filesizeformat }}</span>
-                        <button class="download-btn" data-filename="{{ foldername }}/{{ item.name }}">Download</button>
-                        <button class="delete-btn" data-filename="{{ foldername }}/{{ item.name }}">Delete</button>
-                    {% else %}
-                        {% set isArchive = item.is_archive %}
-                        {% set isImageOrVideo = item.type and item.type.startswith(('image/', 'video/')) %}
-                        {% set editableExtensions = ('.txt', '.html', '.css', '.js', '.py', '.json', '.xml', '.csv', '.md', '.log') %}
-                        {% set isEditable = item.name.lower()|string|truncate(255, True, '')|reverse|slice(1)|first|reverse in editableExtensions %}
-                         <span class="item-name {{ 'archive' if isArchive else '' }}"  data-filename="{{ foldername }}/{{ item.name }}">{{ item.name }}</span>
+                    {% set isArchive = item.is_archive %}
+                    {% set isImageOrVideo = item.type and item.type.startswith(('image/', 'video/')) %}
+                    {% set editableExtensions = ('.txt', '.html', '.css', '.js', '.py', '.json', '.xml', '.csv', '.md', '.log') %}
+                    {% set isEditable = item.name.lower()|string|truncate(255, True, '')|reverse|slice(1)|first|reverse in editableExtensions %}
+                   
+                    
+                    <span class="item-name {{ 'folder' if item.is_dir else ''}} {{ 'archive' if isArchive else '' }}" data-filename="{{ foldername }}/{{ item.name }}">{{ item.name }}</span>
                         {% if item.thumbnail %}
                              <img class="item-thumbnail" src="{{ request.base_url }}{{ item.thumbnail }}" alt="{{ item.name }}" style="display: none;">
                         {% endif %}
-                        <span class="item-type">{{ item.type }}</span>
-                        <span class="item-size">{{ item.size|filesizeformat }}</span>
-                        <button class="download-btn" data-filename="{{ foldername }}/{{ item.name }}">Download</button>
-                        <button class="edit-btn" data-filename="{{ foldername }}/{{ item.name }}" {% if not isEditable %}style="display: none;"{% endif %}>Edit</button>
-                        <button class="extract-btn" data-filename="{{ foldername }}/{{ item.name }}" {% if not isArchive %}style="display: none;"{% endif %}>Extract</button>
-                        <button class="delete-btn" data-filename="{{ foldername }}/{{ item.name }}">Delete</button>
-
-                    {% endif %}
+                     <span class="item-type">{{ item.type }}</span>
+                    <span class="item-size">{{ item.size|filesizeformat }}</span>
+                     <button class="actions-btn">⋯</button>
+                     <div class="actions-menu">
+                        
+                         {% if item.is_dir %}
+                             <button class="download-btn" data-filename="{{ foldername }}/{{ item.name }}">Download</button>
+                             <button class="delete-btn" data-filename="{{ foldername }}/{{ item.name }}">Delete</button>
+                         {% else %}
+                             <button class="download-btn" data-filename="{{ foldername }}/{{ item.name }}">Download</button>
+                             <button class="edit-btn" data-filename="{{ foldername }}/{{ item.name }}" {% if not isEditable %}style="display: none;"{% endif %}>Edit</button>
+                            <button class="extract-btn" data-filename="{{ foldername }}/{{ item.name }}" {% if not isArchive %}style="display: none;"{% endif %}>Extract</button>
+                             <button class="delete-btn" data-filename="{{ foldername }}/{{ item.name }}">Delete</button>
+                         {% endif %}
+                     </div>
                 </li>
                 {% endfor %}
             </ul>
@@ -116,33 +119,55 @@
         
         let currentFolderName = '{{ foldername }}';
 
-        function addEventListenersToButtons() {
-            document.querySelectorAll('.download-btn').forEach(button => {
-                button.removeEventListener('click', onDownloadClick);
-                button.addEventListener('click', onDownloadClick);
-            });
+       function addEventListenersToButtons() {
+            document.querySelectorAll('.actions-btn').forEach(button => {
+                    button.removeEventListener('click', onActionsButtonClick);
+                   button.addEventListener('click', onActionsButtonClick);
+               });
+              fileList.querySelectorAll('li').forEach(li => {
+                 li.querySelectorAll('.download-btn').forEach(button => {
+                    button.removeEventListener('click', onDownloadClick);
+                    button.addEventListener('click', onDownloadClick);
+                });
+
+                li.querySelectorAll('.delete-btn').forEach(button => {
+                    button.removeEventListener('click', onDeleteClick);
+                    button.addEventListener('click', onDeleteClick);
+                });
     
-            document.querySelectorAll('.delete-btn').forEach(button => {
-                button.removeEventListener('click', onDeleteClick);
-                button.addEventListener('click', onDeleteClick);
-            });
+               li.querySelectorAll('.edit-btn').forEach(button => {
+                     button.removeEventListener('click', onEditClick);
+                    button.addEventListener('click', onEditClick);
+               });
     
-            document.querySelectorAll('.edit-btn').forEach(button => {
-                button.removeEventListener('click', onEditClick);
-                button.addEventListener('click', onEditClick);
-            });
-    
-            document.querySelectorAll('.extract-btn').forEach(button => {
-                button.removeEventListener('click', onExtractClick);
-                button.addEventListener('click', onExtractClick);
-            });
-            
+               li.querySelectorAll('.extract-btn').forEach(button => {
+                    button.removeEventListener('click', onExtractClick);
+                   button.addEventListener('click', onExtractClick);
+                });
+              });
                document.querySelectorAll('#fileList li .item-name').forEach(span => {
                 span.removeEventListener('click', onItemNameClick);
                 span.addEventListener('click', onItemNameClick);
             });
         }
+
+        function onActionsButtonClick(event) {
+           console.log('onActionsButtonClick was triggered', event);
+            const li = event.currentTarget.closest('li');
+             console.log('li',li);
+            const actionsMenu = li.querySelector('.actions-menu');
+            console.log('actionsMenu',actionsMenu);
+            actionsMenu.classList.toggle('show');
+             console.log('actionsMenu.classList',actionsMenu.classList);
+          }
         
+        document.addEventListener('click', (event) => {
+            if (!event.target.closest('.actions-menu') && !event.target.closest('.actions-btn')) {
+                 document.querySelectorAll('.actions-menu.show').forEach(menu => {
+                     menu.classList.remove('show');
+                });
+             }
+        });
          // Обработчик нажатия на кнопку создания папки
          createFolderButton.addEventListener('click', () => {
              createFolderModal.style.display = 'block';

@@ -82,22 +82,12 @@ ul#fileList {
     flex-direction: column;
     gap: 8px;
 }
-ul#fileList.list-view li {
-    background-color: #333;
-    padding: 10px;
-    border-radius: 5px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    transition: background-color 0.3s ease;
-    position: relative;
-    overflow: hidden;
-}
 
 
 ul#fileList.list-view li:hover {
-    padding: 9px;
+    padding: 10px;
     border: 1px solid #fff;
+    margin: -1px;
 }
 
 /* Стили для плиточного отображения */
@@ -106,6 +96,18 @@ ul#fileList.grid-view {
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
     gap: 15px;
 }
+ul#fileList.list-view li {
+    background-color: #333;
+    padding: 10px;
+    border-radius: 5px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: background-color 0.3s ease;
+    position: relative; /* Добавлено relative позиционирование */
+    /* overflow: hidden; */
+}
+
 ul#fileList.grid-view li {
     background-color: #333;
     padding: 15px;
@@ -115,16 +117,16 @@ ul#fileList.grid-view li {
     justify-content: space-between;
     align-items: flex-start;
     transition: background-color 0.3s ease;
-    position: relative;
-    overflow: hidden;
+    position: relative; /* Добавлено relative позиционирование */
+    /* overflow: hidden; */
 }
 
 ul#fileList.grid-view li:hover {
     background-color: #444;
     border: 1px solid #fff;
     padding: 14px;
+    
 }
-
 
 /* Анимация загрузки и извлечения */
 li.uploading::before,
@@ -197,8 +199,8 @@ button:hover {
 }
 
 .delete-btn:hover {
-    background-color: transparent;
-    border: 1px solid #fff;
+    border: 1px solid #ff9d9d;
+    padding: 7px 14px;
 }
 
 .delete-btn {
@@ -206,7 +208,6 @@ button:hover {
     border: 1px solid #fff;
     color: #fff;
 }
-
 /* Дополнительные стили для плиток */
 ul#fileList.grid-view .item-name,
 ul#fileList.grid-view .item-type,
@@ -256,6 +257,8 @@ ul#fileList.grid-view .item-thumbnail {
     margin: 0 auto; /* Центрируем изображение/видео внутри контейнера */
 }
 
+
+
 /* Стили для модальных окон */
 .modal {
     display: none;
@@ -289,7 +292,7 @@ ul#fileList.grid-view .item-thumbnail {
       display: flex;
       flex-direction: column;
 }
-.modal-content form label {
+ .modal-content form label {
      margin-bottom: 5px;
 }
  .modal-content form input, .modal-content form textarea{
@@ -302,4 +305,48 @@ ul#fileList.grid-view .item-thumbnail {
 }
  .modal-content form textarea{
      height: 150px;
+}
+
+
+
+
+/* Стили для меню действий */
+.actions-btn {
+    font-size: 1.5em;
+    line-height: 0.8;
+    padding: 0;
+    margin-left: 5px;
+    border: none;
+    background-color: transparent; /* Убедитесь, что фон прозрачный */
+    color: white; /* Убедитесь, что текст виден */
+}
+
+.actions-menu {
+    position: absolute;
+    top: 110%;
+    right: -1%;
+    background-color: #333;
+    border: 1px solid #555;
+    border-radius: 5px;
+    padding: 5px 0;
+    display: none;
+    z-index: 100;
+}
+
+.actions-menu.show {
+    display: block;
+}
+
+.actions-menu button {
+    display: block;
+    border: none;
+    width: 100%;
+    text-align: left;
+    padding: 8px 15px;
+    margin: 0;
+    background-color: transparent; /* Убедитесь, что фон прозрачный */
+    color: white; /* Убедитесь, что текст виден */
+}
+.actions-menu button:hover {
+    background-color: #444;
 }
