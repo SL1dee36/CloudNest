@@ -1,0 +1,305 @@
+/* Общие стили */
+body {
+    margin: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #1a1a1a;
+    color: #fff;
+    line-height: 1.6;
+    transition: background-color 0.3s ease;
+}
+
+a {
+    color: #b0b4fc;
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+.container {
+    width: 90%;
+    max-width: 1200px;
+    margin: 20px auto;
+    display: flex;
+    flex-direction: column;
+    min-height: calc(100vh - 40px);
+    background-color: #222;
+    border-radius: 10px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+}
+
+.top-block {
+    background-color: #2c2c2c;
+    padding: 20px;
+    text-align: center;
+    border-bottom: 1px solid #444;
+}
+
+.top-block button:hover {
+    background-color: #455a64;
+}
+
+
+.bottom-block {
+    padding: 20px;
+    flex-grow: 1;
+}
+
+h1, h2 {
+    text-align: center;
+    margin-bottom: 15px;
+    color: #fff;
+}
+
+/* Кнопка переключения вида */
+.view-toggle {
+    text-align: right;
+    margin-bottom: 15px;
+}
+
+.view-toggle button {
+    background-color: #37474f;
+    color: #fff;
+    padding: 8px 12px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.view-toggle button:hover {
+    background-color: #455a64;
+}
+
+
+/* Стили для спискового отображения */
+ul#fileList {
+    list-style: none;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+ul#fileList.list-view li {
+    background-color: #333;
+    padding: 10px;
+    border-radius: 5px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: background-color 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+
+ul#fileList.list-view li:hover {
+    padding: 9px;
+    border: 1px solid #fff;
+}
+
+/* Стили для плиточного отображения */
+ul#fileList.grid-view {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 15px;
+}
+ul#fileList.grid-view li {
+    background-color: #333;
+    padding: 15px;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: flex-start;
+    transition: background-color 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+ul#fileList.grid-view li:hover {
+    background-color: #444;
+    border: 1px solid #fff;
+    padding: 14px;
+}
+
+
+/* Анимация загрузки и извлечения */
+li.uploading::before,
+li.extracting::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.1);
+    animation: loading-animation 1.5s linear infinite;
+    border-radius: inherit;
+    z-index: 1;
+}
+
+@keyframes loading-animation {
+    0% {
+        transform: translateX(-100%);
+    }
+    100% {
+        transform: translateX(100%);
+    }
+}
+
+
+/* Стили для элементов списка */
+.item-name {
+    flex-grow: 1;
+    margin-right: 10px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    position: relative;
+    z-index: 2;
+    font-weight: 500;
+}
+.item-name.folder::before {
+    content: '📂 ';
+}
+.item-name.archive::before {
+    content: '🗄️ '; /* Иконка архива */
+}
+
+.item-type, .item-size {
+    margin-left: 10px;
+    font-size: 0.9em;
+    color: #ccc;
+    position: relative;
+    z-index: 2;
+}
+
+/* Кнопки действий */
+button {
+    background-color: transparent;
+    color: white;
+    padding: 8px 12px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-left: 5px;
+    transition: background-color 0.3s ease;
+    border: 1px solid #fff;
+    position: relative;
+    z-index: 2;
+}
+
+button:hover {
+    background-color: transparent;
+}
+
+.delete-btn:hover {
+    background-color: transparent;
+    border: 1px solid #fff;
+}
+
+.delete-btn {
+    background-color: transparent;
+    border: 1px solid #fff;
+    color: #fff;
+}
+
+/* Дополнительные стили для плиток */
+ul#fileList.grid-view .item-name,
+ul#fileList.grid-view .item-type,
+ul#fileList.grid-view .item-size {
+    margin: 0 0 5px 0; /* Для более плотного расположения */
+    white-space: normal; /* Разрешаем перенос строки */
+}
+ul#fileList.grid-view button {
+    margin: 5px 0 0 0;
+    width: 100%;
+    text-align: center;
+}
+
+ul#fileList.grid-view li {
+    background-color: #333;
+    padding: 15px;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center; /* Добавляем это для центрирования по горизонтали */
+    transition: background-color 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+ul#fileList.grid-view .item-thumbnail {
+    max-width: 100%; /* Ensure the image is not wider than its container */
+    max-height: 200px;
+    display: block; /* Ensure there is no extra space */
+    margin-left: auto;
+    margin-right: auto;
+    border-radius: 10%;
+}
+
+.view-image-container {
+    display: flex;
+    justify-content: center; /* Центрируем по горизонтали */
+    align-items: center; /* Центрируем по вертикали */
+    min-height: 50vh;  /* Минимальная высота, чтобы изображение было видно, если оно маленькое */
+}
+
+.view-image-container img, .view-image-container video {
+    max-width: 90%; /* Ограничиваем ширину изображения/видео */
+    max-height: 90vh; /* Ограничиваем максимальную высоту */
+    display: block; /* Убираем лишнее пространство снизу */
+    margin: 0 auto; /* Центрируем изображение/видео внутри контейнера */
+}
+
+/* Стили для модальных окон */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.4); /* Затемнение фона */
+}
+.modal-content {
+    background-color: #2c2c2c;
+    margin: 15% auto;
+    padding: 20px;
+    border: 1px solid #7c7c7c;
+    width: 80%;
+    max-width: 600px;
+    border-radius: 10px;
+    position: relative; /* Для позиционирования кнопки закрытия */
+}
+.close-button {
+    color: #fff;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+}
+  .modal-content form {
+      display: flex;
+      flex-direction: column;
+}
+.modal-content form label {
+     margin-bottom: 5px;
+}
+ .modal-content form input, .modal-content form textarea{
+     background-color: #333;
+     color: #fff;
+     border: none;
+     border-radius: 5px;
+     padding: 10px;
+     margin-bottom: 15px;
+}
+ .modal-content form textarea{
+     height: 150px;
+}
