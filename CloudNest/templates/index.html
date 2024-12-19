@@ -5,6 +5,55 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="static/style.css">
     <title>Удаленное хранилище</title>
+    <style>
+        /* Стили для модальных окон */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4); /* Затемнение фона */
+        }
+        .modal-content {
+            background-color: #2c2c2c;
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid #7c7c7c;
+            width: 80%;
+            max-width: 600px;
+            border-radius: 10px;
+            position: relative; /* Для позиционирования кнопки закрытия */
+        }
+        .close-button {
+            color: #fff;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+          .modal-content form {
+              display: flex;
+              flex-direction: column;
+        }
+         .modal-content form label {
+              margin-bottom: 5px;
+         }
+          .modal-content form input, .modal-content form textarea{
+              background-color: #333;
+              color: #fff;
+              border: none;
+              border-radius: 5px;
+              padding: 10px;
+              margin-bottom: 15px;
+         }
+          .modal-content form textarea{
+              height: 150px;
+         }
+    </style>
 </head>
 <body>
     <div class="container">
@@ -12,7 +61,9 @@
             <h1>Удаленное хранилище</h1>
             <input type="file" id="fileInput" multiple style="display: none;">
             <button id="uploadButton">Загрузить файл</button>
-        </div>
+           <button id="createFolderButton">Создать папку</button>
+           <button id="createFileButton">Создать файл</button>
+         </div>
         <div class="bottom-block">
             <h2>Файлы:</h2>
             <div class="view-toggle">
@@ -23,12 +74,63 @@
             </ul>
         </div>
     </div>
+    <!-- Модальное окно для создания папки -->
+    <div id="createFolderModal" class="modal">
+       <div class="modal-content">
+        <span class="close-button" id="closeCreateFolderModal">×</span>
+        <h2>Создать папку</h2>
+        <form id="createFolderForm">
+           <label for="folderName">Имя папки:</label>
+           <input type="text" id="folderName" name="folderName" required>
+           <button type="submit">Создать</button>
+        </form>
+       </div>
+   </div>
+    <!-- Модальное окно для создания файла -->
+    <div id="createFileModal" class="modal">
+        <div class="modal-content">
+           <span class="close-button" id="closeCreateFileModal">×</span>
+            <h2>Создать файл</h2>
+            <form id="createFileForm">
+               <label for="fileName">Имя файла:</label>
+               <input type="text" id="fileName" name="fileName" required>
+               <label for="fileContent">Содержимое:</label>
+               <textarea id="fileContent" name="fileContent"></textarea>
+               <button type="submit">Создать</button>
+           </form>
+        </div>
+    </div>
+   <!-- Модальное окно для переименования -->
+    <div id="renameModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" id="closeRenameModal">×</span>
+            <h2>Переименовать</h2>
+           <form id="renameForm">
+                <label for="newName">Новое имя:</label>
+                <input type="text" id="newName" name="newName" required>
+                <input type="hidden" id="oldName" name="oldName">
+                <button type="submit">Переименовать</button>
+           </form>
+      </div>
+    </div>
      <script>
         const fileList = document.getElementById('fileList');
         const uploadButton = document.getElementById('uploadButton');
         const fileInput = document.getElementById('fileInput');
         const toggleViewButton = document.getElementById('toggleViewButton');
-
+        const createFolderButton = document.getElementById('createFolderButton');
+        const createFileButton = document.getElementById('createFileButton');
+        const createFolderModal = document.getElementById('createFolderModal');
+        const createFileModal = document.getElementById('createFileModal');
+        const closeCreateFolderModal = document.getElementById('closeCreateFolderModal');
+        const closeCreateFileModal = document.getElementById('closeCreateFileModal');
+        const createFolderForm = document.getElementById('createFolderForm');
+        const createFileForm = document.getElementById('createFileForm');
+        const renameModal = document.getElementById('renameModal');
+        const closeRenameModal = document.getElementById('closeRenameModal');
+        const renameForm = document.getElementById('renameForm');
+        
+        let currentFolderName = '';
 
         // Функция для обновления списка файлов
         function updateFileList() {
@@ -39,6 +141,7 @@
                     data.items.forEach(item => {
                         const li = document.createElement('li');
                         li.dataset.filename = item.name;
+                         li.dataset.path = item.name;
 
                         // Определение типа файла на клиенте
                         const isArchive = isArchiveFile(item.name);
@@ -71,7 +174,6 @@
                 })
                 .catch(error => console.error('Error:', error));
         }
-
         // Функция для определения, является ли файл архивом (на основе расширения)
         function isArchiveFile(filename) {
             const archiveExtensions = ['.zip', '.rar', '.7z', '.tar', '.gz', '.bz2'];
@@ -85,7 +187,6 @@
             const ext = filename.slice(filename.lastIndexOf('.')).toLowerCase();
             return editableExtensions.includes(ext);
         }
-
 
         // Функция для форматирования размера файла
         function formatBytes(bytes, decimals = 2) {
@@ -104,7 +205,98 @@
         uploadButton.addEventListener('click', () => {
             fileInput.click();
         });
+        
+        // Обработчик нажатия на кнопку создания папки
+        createFolderButton.addEventListener('click', () => {
+           createFolderModal.style.display = 'block';
+        });
+         // Обработчик нажатия на кнопку создания файла
+        createFileButton.addEventListener('click', () => {
+            createFileModal.style.display = 'block';
+        });
+        
+        // Обработчик закрытия модального окна создания папки
+        closeCreateFolderModal.addEventListener('click', () => {
+           createFolderModal.style.display = 'none';
+        });
 
+        // Обработчик закрытия модального окна создания файла
+        closeCreateFileModal.addEventListener('click', () => {
+          createFileModal.style.display = 'none';
+        });
+
+        // Обработчик отправки формы создания папки
+        createFolderForm.addEventListener('submit', (event) => {
+             event.preventDefault();
+             const formData = new FormData(createFolderForm);
+             fetch('/create_folder', {
+                 method: 'POST',
+                 body: formData,
+             })
+            .then(response => response.json())
+            .then(data => {
+                if (data.message) {
+                  createFolderModal.style.display = 'none';
+                   updateFileList();
+                 } else {
+                   alert(data.error);
+                }
+             })
+             .catch(error => {
+                 console.error('Error:', error);
+                alert('Error creating folder!');
+              });
+        });
+
+         // Обработчик отправки формы создания файла
+         createFileForm.addEventListener('submit', (event) => {
+             event.preventDefault();
+             const formData = new FormData(createFileForm);
+             fetch('/create_file', {
+                 method: 'POST',
+                 body: formData,
+             })
+            .then(response => response.json())
+            .then(data => {
+                if (data.message) {
+                 createFileModal.style.display = 'none';
+                  updateFileList();
+                 } else {
+                   alert(data.error);
+                 }
+            })
+            .catch(error => {
+               console.error('Error:', error);
+              alert('Error creating file!');
+          });
+        });
+         // Обработчик закрытия модального окна переименования
+        closeRenameModal.addEventListener('click', () => {
+            renameModal.style.display = 'none';
+        });
+          // Обработчик отправки формы переименования
+          renameForm.addEventListener('submit', (event) => {
+            event.preventDefault();
+           const formData = new FormData(renameForm);
+            fetch('/rename', {
+                 method: 'POST',
+                body: formData,
+            })
+            .then(response => response.json())
+            .then(data => {
+               if (data.message) {
+                renameModal.style.display = 'none';
+                   updateFileList();
+              }
+              else{
+                   alert(data.error)
+                }
+          })
+           .catch(error => {
+              console.error('Error:', error);
+              alert('Error renaming!');
+            });
+         });
         // Обработчик выбора файла
         fileInput.addEventListener('change', () => {
             const files = fileInput.files;
@@ -296,7 +488,7 @@
               const pathParts = currentPath.split('/');
                const currentFolderName = pathParts[pathParts.length - 1];
                 if (filename.startsWith(currentFolderName)) {
-                     newPath = `/folder/${filename}/${filename}`;
+                     newPath = `/folder/${filename}`;
                 }
                 else{
                   newPath = `/folder/${currentPath}/${filename}`
@@ -365,7 +557,16 @@
                 alert('Error extracting archive!');
             });
         }
-
+         // Функция для обработки переименования
+        function renameItem(event) {
+            event.stopPropagation();
+           const li = event.target.closest('li');
+           if (li) {
+              const oldName = li.dataset.filename;
+               document.getElementById('oldName').value = oldName;
+                renameModal.style.display = 'block';
+                }
+            }
         toggleViewButton.addEventListener('click', () => {
             fileList.classList.toggle('list-view');
             fileList.classList.toggle('grid-view');
@@ -373,7 +574,12 @@
                 item.style.display = fileList.classList.contains('grid-view') ? 'block' : 'none';
             })
         });
-
+         fileList.addEventListener('contextmenu', function(event) {
+            event.preventDefault();
+           if(event.target.closest('li')){
+              renameItem(event)
+             }
+        });
         // Обновляем список файлов при загрузке страницы
         updateFileList();
     </script>
